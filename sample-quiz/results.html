@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sample QA Quiz - Results</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="banner" id="bug-banner" hidden></div>
+    <div class="card header">
+      <h1 id="quiz-title"></h1>
+      <div class="score">Total points: <span id="score-display"></span></div>
+      <div id="percent-display"></div>
+      <p><a id="retake" href="index.html">Take the quiz again</a></p>
+    </div>
+    <div role="list" id="results"></div>
+  </div>
+  <script src="quiz-data.js"></script>
+  <script src="results.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Quiz QA Checker",
+  "short_name": "Quiz QA",
+  "version": "0.1.0",
+  "description": "Test your own quizzes before they go live: fills in answers for review, checks answer keys with Gemini, and verifies scoring.",
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "sidePanel"
+  ],
+
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "Quiz QA Checker",
+    "default_popup": "popup.html"
+  },
+
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+
+  "minimum_chrome_version": "116"
+}

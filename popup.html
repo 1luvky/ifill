@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Quiz QA Checker</title>
+  <style>
+    :root {
+      --bg: #ffffff; --fg: #1f1f1f; --muted: #5f6368; --line: #dadce0; --card: #f8f9fa;
+      --accent: #1a73e8; --ok: #188038; --okbg: #e6f4ea; --err: #c5221f; --errbg: #fce8e6;
+      --warnbg: #fef7e0; --warn: #8a5a00;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #202124; --fg: #e8eaed; --muted: #9aa0a6; --line: #3c4043; --card: #292a2d;
+        --accent: #8ab4f8; --ok: #81c995; --okbg: #1e3a29; --err: #f28b82; --errbg: #3c1f1e;
+        --warnbg: #3a3020; --warn: #fdd663;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { width: 380px; margin: 0; padding: 14px; background: var(--bg); color: var(--fg);
+           font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    h2 { font-size: 13px; margin: 14px 0 6px; }
+    p { margin: 4px 0 8px; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    label { display: block; font-weight: 600; margin: 10px 0 4px; }
+    label.inline { display: flex; gap: 6px; align-items: flex-start; font-weight: 400; margin: 8px 0; }
+    input[type=text], input[type=password], select, textarea {
+      width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+      background: var(--bg); color: var(--fg); font: inherit; }
+    textarea { min-height: 70px; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+    .row { display: flex; gap: 6px; align-items: center; }
+    .row > input { flex: 1; }
+    button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+             background: var(--card); color: var(--fg); font: inherit; cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    @media (prefers-color-scheme: dark) { button.primary { color: #202124; } }
+    button:disabled { opacity: .55; cursor: default; }
+    .notice { background: var(--warnbg); color: var(--fg); border-radius: 6px; padding: 8px 10px; font-size: 12px; margin: 8px 0; }
+    .notice b { color: var(--warn); }
+    .status { border-radius: 6px; padding: 7px 10px; margin: 8px 0; font-size: 12px; }
+    .status.ok { background: var(--okbg); color: var(--ok); }
+    .status.err { background: var(--errbg); color: var(--err); }
+    .status.busy { background: var(--card); color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+    details { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 6px; }
+    summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+    .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    a { color: var(--accent); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- ============ ONBOARDING ============ -->
+  <section id="onboarding" hidden>
+    <h1>Quiz QA Checker</h1>
+    <p>Tests <b>your own</b> quizzes before they go live: it fills in answers for you to review,
+       uses Gemini to double-check the answer key, and checks that the score adds up.
+       It never submits a quiz without asking you.</p>
+
+    <div class="notice"><b>Privacy:</b> when you run it, the quiz's questions, options and images are sent
+      to Google's Gemini API. On the free tier, Google may use this data to improve its products.
+      Don't use it on confidential quizzes (or keep "Confirm before sending" on).</div>
+
+    <div id="key-form-slot"></div>
+  </section>
+
+  <!-- ============ MAIN ============ -->
+  <section id="main" hidden>
+    <h1>Quiz QA Checker</h1>
+    <div class="card small" id="summary"></div>
+
+    <label for="mode">Mode</label>
+    <select id="mode">
+      <option value="scoring">Scoring test (no AI): fixed answer pattern</option>
+      <option value="key">Key validation: Gemini answers, compare with key</option>
+      <option value="dryrun">Dry run: show questions + Gemini answers, click nothing</option>
+    </select>
+
+    <div id="pattern-box">
+      <label for="pattern">Answer pattern</label>
+      <select id="pattern">
+        <option value="first">Always the first option</option>
+        <option value="alternating">Alternating: 1st, 2nd, 1st, 2nd…</option>
+        <option value="custom">Custom list</option>
+      </select>
+      <input type="text" id="custom-pattern" placeholder="e.g. A,C,B,D or 1,3,2,4 (one per question)" hidden>
+    </div>
+
+    <label class="inline" id="confirm-row">
+      <input type="checkbox" id="confirm-send">
+      <span>Confirm before sending quiz content to Google</span>
+    </label>
+
+    <div class="btns">
+      <button class="primary" id="run-btn">Run on this tab</button>
+      <button id="stop-btn" hidden>Stop</button>
+      <button id="continue-btn" hidden>Continue</button>
+    </div>
+    <div id="run-status"></div>
+
+    <div class="notice small"><b>Privacy:</b> Gemini modes send quiz content to Google; free-tier data may be used to improve Google's products.</div>
+
+    <details id="settings">
+      <summary>Settings</summary>
+      <div id="key-form-slot-settings"></div>
+
+      <h2>Settings file (does not include the key)</h2>
+      <div class="btns">
+        <button id="export-btn">Export settings</button>
+        <button id="import-toggle">Import settings…</button>
+      </div>
+      <div id="import-box" hidden>
+        <p class="small muted">Paste the contents of an exported settings file:</p>
+        <textarea id="import-text"></textarea>
+        <div class="btns"><button id="import-btn">Import</button></div>
+      </div>
+      <div id="settings-status"></div>
+    </details>
+  </section>
+
+  <!-- ============ KEY + MODEL FORM (shared, moved into a slot) ============ -->
+  <template id="key-form-tpl">
+    <label for="api-key">Gemini API key</label>
+    <div class="row">
+      <input type="password" id="api-key" autocomplete="off" spellcheck="false" placeholder="Paste key (starts with AIza…)">
+      <button id="toggle-key" title="Show / hide">Show</button>
+    </div>
+    <p class="small muted">No key yet? Create a free one at
+      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
+      Your current free-tier limits are shown in AI Studio's rate-limit page.</p>
+    <p class="small" id="key-current"></p>
+
+    <label class="inline">
+      <input type="checkbox" id="sync-key">
+      <span>Sync key across my Chrome profile
+        <span class="small muted" style="display:block">Stores the key in your Google account's Chrome sync, so it appears
+        on every computer where you're signed in to Chrome. Leave off to keep it on this computer only.</span></span>
+    </label>
+
+    <label for="model">Model</label>
+    <select id="model"></select>
+    <input type="text" id="model-other" placeholder="Type a model name, e.g. gemini-2.5-flash" hidden style="margin-top:6px">
+    <div class="btns">
+      <button id="load-models" class="small">Load models available to my key</button>
+    </div>
+
+    <div class="btns">
+      <button id="test-btn">Test connection</button>
+      <button class="primary" id="save-btn">Save</button>
+      <button id="clear-key" hidden>Clear key</button>
+    </div>
+    <div id="key-status"></div>
+  </template>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

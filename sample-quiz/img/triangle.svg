@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="220" viewBox="0 0 320 220">
+  <rect width="320" height="220" fill="#fff"/>
+  <polygon points="30,190 290,190 120,30" fill="#e8f0fe" stroke="#1a73e8" stroke-width="3"/>
+  <text x="48" y="180" font-family="Arial" font-size="18" fill="#202124">50°</text>
+  <text x="240" y="180" font-family="Arial" font-size="18" fill="#202124">60°</text>
+  <text x="112" y="65" font-family="Arial" font-size="20" font-style="italic" fill="#d93025">x</text>
+</svg>

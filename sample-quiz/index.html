@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sample QA Quiz</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="banner" id="bug-banner" hidden></div>
+    <div class="card header">
+      <h1 id="quiz-title"></h1>
+      <div id="quiz-desc"></div>
+      <div class="section-title" id="section-title"></div>
+    </div>
+    <form id="quiz-form" novalidate>
+      <div role="list" id="questions"></div>
+      <div class="nav">
+        <button type="button" class="secondary" id="back-btn">Back</button>
+        <button type="button" id="next-btn">Next</button>
+        <button type="submit" id="submit-btn">Submit</button>
+      </div>
+    </form>
+  </div>
+  <script src="quiz-data.js"></script>
+  <script src="quiz.js"></script>
+</body>
+</html>
