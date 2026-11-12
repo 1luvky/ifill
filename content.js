@@ -19,7 +19,7 @@
 
   const UI_ATTR = 'data-quizqa-ui';
   const adapters = Object.values(globalThis.QuizQAAdapters || {});
-  if (!adapters.length) throw new Error('Quiz QA: no adapters loaded before content.js');
+  if (!adapters.length) throw new Error('iFill: no adapters loaded before content.js');
 
   // ---------------- adapter selection ----------------
 
@@ -310,11 +310,11 @@
     if (!show) { slot.replaceChildren(); return; }
     const pill = document.createElement('div');
     pill.className = tone === 'error' ? 'pill error' : 'pill';
-    const full = `Quiz QA Checker: ${text || 'test run in progress'}`;
+    const full = `iFill: ${text || 'test run in progress'}`;
     pill.title = full;
     const dot = document.createElement('span'); dot.className = 'dot';
     const msg = document.createElement('span'); msg.className = 'txt';
-    msg.textContent = `Quiz QA · ${text || 'running'}`;
+    msg.textContent = `iFill · ${text || 'running'}`;
     const stop = document.createElement('button');
     stop.textContent = 'Stop';
     stop.title = 'Stop this test run';
@@ -371,7 +371,7 @@
   }
 
   // Small non-blocking card in the corner; the page stays usable so you can review it.
-  function confirmDialog({ title = 'Quiz QA Checker', message = '', okLabel = 'OK', cancelLabel = 'Cancel', rememberLabel = '' }) {
+  function confirmDialog({ title = 'iFill', message = '', okLabel = 'OK', cancelLabel = 'Cancel', rememberLabel = '' }) {
     return new Promise((resolve) => {
       const slot = ui().getElementById('dlg-slot');
       const card = document.createElement('div');

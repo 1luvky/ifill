@@ -1,6 +1,6 @@
-# iFill: Quiz QA Checker
+# iFill: quiz & form testing assistant
 
-A Chrome extension for quiz creators to test their **own** quizzes before students see them.
+For people who create online quizzes and forms. iFill fills in answers, submits, and checks that the answer key and the displayed score are correct, so you can find mistakes before the quiz goes live.
 
 Before a quiz goes live, you need to know three things:
 
@@ -30,7 +30,7 @@ In every mode:
 
 ## Good to know
 
-- It is aimed at **Google Forms** and **Microsoft Forms** quizzes. For now it reads every quiz page with one generic adapter; platform-specific adapters are planned.
+- It is aimed at **Google Forms** and **Microsoft Forms** quizzes, and its generic adapter also tries other sites (such as Moodle or custom quiz pages). Platform-specific adapters are planned.
 - Gemini modes need a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey). The key stays in your browser and is only sent to Google.
 - In Gemini modes, quiz content is sent to Google. On the free tier, Google may use it to improve its products, so don't use those modes on confidential quizzes. Scoring-test mode sends nothing anywhere.
 - This is a testing tool for quizzes you created. It is not meant for taking graded or proctored exams.

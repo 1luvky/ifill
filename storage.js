@@ -121,7 +121,7 @@ export async function importSettings(jsonText) {
   let data;
   try { data = JSON.parse(jsonText); } catch { throw new Error('File is not valid JSON.'); }
   if (data?.app !== 'quiz-qa-checker' || typeof data.settings !== 'object') {
-    throw new Error('This is not a Quiz QA Checker settings file.');
+    throw new Error('This is not an iFill settings file.');
   }
   return saveSettings(data.settings); // sanitizeSettings drops unknown fields
 }

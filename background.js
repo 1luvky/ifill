@@ -98,7 +98,7 @@ async function inject(tabId) {
     await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_FILES });
   } catch (e) {
     throw new NoAccessError(
-      'Chrome did not allow access to this page. Click the Quiz QA Checker icon while viewing the quiz tab, then press Continue. '
+      'Chrome did not allow access to this page. Click the iFill icon while viewing the quiz tab, then press Continue. '
       + `(${e.message})`);
   }
 }
