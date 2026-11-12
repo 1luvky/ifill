@@ -13,15 +13,48 @@ const PRESET_MODELS = [
 ];
 const OTHER = '__other__';
 
+// Support contacts shown in the popup footer. Edit here to change them.
+const SUPPORT = {
+  issuesUrl: 'https://github.com/1luvky/ifill/issues/new',
+  email: 'lucky.tdr18@gmail.com',
+  privacyUrl: 'https://github.com/1luvky/ifill/blob/main/PRIVACY.md',
+};
+
 let settings;
 
 init();
 
 async function init() {
+  setUpFooter();
   settings = await storage.getSettings();
   const hasKey = (await storage.getKeyLocation()) !== 'none';
   if (!settings.onboarded || !hasKey) showOnboarding();
   else await showMain();
+}
+
+// Footer links. The issue form is pre-filled with the iFill and Chrome versions only;
+// nothing about the user's key, settings or quizzes is included.
+function setUpFooter() {
+  const version = chrome.runtime.getManifest().version;
+  const chromeVersion = (navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1] || 'unknown';
+  const body = [
+    `iFill version: ${version}`,
+    `Chrome version: ${chromeVersion}`,
+    'Quiz platform (Google Forms, Microsoft Forms, other):',
+    'Mode (Scoring test, Key validation, Dry run):',
+    '',
+    'What happened:',
+    '',
+    'What you expected:',
+    '',
+    '(Please do not paste your API key or confidential quiz content.)',
+  ].join('\n');
+  const subject = `iFill ${version}: problem report`;
+  $('report-link').href = `${SUPPORT.issuesUrl}?${new URLSearchParams({ title: subject, body })}`;
+  $('email-link').href = `mailto:${SUPPORT.email}?${new URLSearchParams({ subject, body }).toString().replace(/\+/g, '%20')}`;
+  $('email-link').textContent = SUPPORT.email;
+  $('privacy-link').href = SUPPORT.privacyUrl;
+  $('version').textContent = `v${version}`;
 }
 
 // ---------------- views ----------------

@@ -129,7 +129,8 @@ https://github.com/1luvky/ifill/blob/main/PRIVACY.md
 ## Account and support
 
 **Developer contact email:** lucky.tdr18@gmail.com
-**Support:** lucky.tdr18@gmail.com (the "Report a problem" link comes in the next step)
+**Support URL:** https://github.com/1luvky/ifill/issues
+The popup footer also has "Report a problem" (opens a pre-filled GitHub issue), the support email, and a link to the privacy policy.
 
 ---
 

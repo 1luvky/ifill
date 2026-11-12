@@ -49,6 +49,7 @@
     .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     a { color: var(--accent); }
     [hidden] { display: none !important; }
+    footer { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
   </style>
 </head>
 <body>
@@ -153,6 +154,14 @@
     </div>
     <div id="key-status"></div>
   </template>
+
+  <!-- ============ FOOTER (both views) ============ -->
+  <footer class="small muted">
+    <a id="report-link" target="_blank" rel="noopener">Report a problem</a>
+    · <a id="email-link" target="_blank" rel="noopener"></a>
+    · <a id="privacy-link" target="_blank" rel="noopener">Privacy</a>
+    · <span id="version"></span>
+  </footer>
 
   <script type="module" src="popup.js"></script>
 </body>
