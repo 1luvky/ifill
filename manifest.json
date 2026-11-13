@@ -3,7 +3,7 @@
   "name": "iFill",
   "short_name": "iFill",
   "version": "1.0.0",
-  "description": "Quiz & form testing assistant for quiz creators: fills in answers, submits, and checks the answer key and displayed score.",
+  "description": "Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.",
 
   "icons": {
     "16": "icons/icon16.png",

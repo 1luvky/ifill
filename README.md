@@ -1,6 +1,6 @@
 # iFill: quiz & form testing assistant
 
-For people who create online quizzes and forms. iFill fills in answers, submits, and checks that the answer key and the displayed score are correct, so you can find mistakes before the quiz goes live.
+Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.
 
 Before a quiz goes live, you need to know three things:
 
@@ -16,8 +16,8 @@ You open your quiz, click the extension, and pick one of three modes:
 
 | Mode | What happens | Uses AI? |
 |---|---|---|
-| **Scoring test** | Fills in a fixed answer pattern you choose (always the first option, alternating, or your own list like `A, C, B+D`). Because you know exactly what was chosen, you know what the score *should* be and can compare it with the score the quiz shows. | No |
-| **Key validation** | Google Gemini answers every question on its own, without seeing your answer key. After you submit, any question where Gemini and your key disagree is worth a second look: either the key is wrong or the question is unclear. | Yes |
+| **Scoring test** | Fills in a fixed answer pattern you choose (always the first option, alternating, or your own list like `A, C, B+D`). iFill does not calculate the expected score itself: because you know exactly which answers were chosen, you work out what the score should be and compare it with the score on the quiz's own results page. | No |
+| **Key validation** | Google Gemini answers every question on its own, without seeing your answer key, and iFill selects those answers. iFill does not compare them with your key itself: after you submit, open the quiz's own results page (Google Forms, for example, shows each chosen answer next to the correct one) and look at the questions marked wrong. Each one is a wrong key, an unclear question, or a Gemini mistake. | Yes |
 | **Dry run** | Shows Gemini's answer for each question on the current page without clicking anything. | Yes |
 
 In every mode:

@@ -3,7 +3,7 @@
 **Effective date:** 13 November 2026
 **Developer:** Lucky, lucky.tdr18@gmail.com
 
-iFill is a quiz & form testing assistant: a Chrome extension for people who create online quizzes and forms. It fills in answers, submits, and checks that the answer key and the displayed score are correct, so you can find mistakes before the quiz goes live.
+iFill is a Chrome extension. Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.
 
 ## Summary
 

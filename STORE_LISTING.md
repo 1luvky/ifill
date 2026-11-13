@@ -9,8 +9,8 @@ Copy each section into the matching field of the Chrome Web Store Developer Dash
 **Name** (taken from the manifest)
 iFill
 
-**Summary** (taken from the manifest; 122 of 132 characters)
-Quiz & form testing assistant for quiz creators: fills in answers, submits, and checks the answer key and displayed score.
+**Summary** (taken from the manifest; 121 of 132 characters)
+Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.
 
 **Category**
 Tools
@@ -21,16 +21,16 @@ English
 **Description**
 
 ```
-iFill: quiz & form testing assistant. For people who create online quizzes and forms. iFill fills in answers, submits, and checks that the answer key and the displayed score are correct, so you can find mistakes before the quiz goes live.
+iFill: Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.
 
 Before a quiz goes live you need to know three things: does it work from start to finish, are the configured correct answers actually right, and is the score shown after submitting calculated correctly? Checking a 30–40 question quiz by hand is slow. iFill fills it in for you so you only have to review the result.
 
 HOW IT WORKS
 Open your quiz, click the iFill icon, and choose a mode:
 
-• Scoring test (no AI, nothing sent anywhere): selects a fixed answer pattern you choose, such as always the first option, alternating, or your own list like "A, C, B+D". Because you know exactly what was chosen, you can compare the score the quiz shows with the score it should show.
+• Scoring test (no AI, nothing sent anywhere): selects a fixed answer pattern you choose, such as always the first option, alternating, or your own list like "A, C, B+D". iFill does not calculate the expected score itself: because you know exactly which answers were chosen, you work out what the score should be and compare it with the score on the quiz's own results page.
 
-• Key validation: Google's Gemini AI answers each question without seeing your answer key. After you submit, any question where Gemini and your key disagree deserves a second look. Either the key is wrong or the question is unclear. Gemini can be wrong too, so iFill never treats its answer as the verdict.
+• Key validation: Google's Gemini AI answers each question without seeing your answer key, and iFill selects those answers. iFill does not compare them with your key itself: after you submit, open the quiz's own results page (Google Forms, for example, shows each chosen answer next to the correct one) and look at the questions marked wrong. Each one is a wrong key, an unclear question, or a Gemini mistake, so treat Gemini's answers as a second opinion, not the verdict.
 
 • Dry run: shows Gemini's answer for each question on the current page without clicking anything.
 
