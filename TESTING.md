@@ -17,7 +17,7 @@ You need:
       `manifest.json`, `background.js`, `content.js`, `llm.js`, `storage.js`, `popup.html`, `popup.js`, `adapters/generic.js`, `icons/icon16.png`, `icons/icon32.png`, `icons/icon48.png`, `icons/icon128.png`.
       There should be no `sample-quiz/`, `.md` files, `build.sh`, `.git`, `.DS_Store` or `__MACOSX`.
 - [ ] **No API key in the zip:** `unzip -p ifill.zip | grep -acE 'AIza[0-9A-Za-z_-]{30,}'` prints `0`. (A plain `AIza` search finds a few harmless matches: the "starts with AIza…" hint and the key-format check.)
-- [ ] **No personal data in the zip:** `unzip -p ifill.zip | grep -aciE '/Users/|lucky\.chaudhary'` prints `0`.
+- [ ] **No local file paths in the zip:** `unzip -p ifill.zip | grep -acE '/Users/|/home/|[A-Za-z]:\\Users\\'` prints `0`.
 - [ ] **The only email is the support address:** `unzip -p ifill.zip | grep -aoE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}' | sort -u` prints only `lucky.tdr18@gmail.com`.
 - [ ] **The only remote address that code talks to is Gemini:** `unzip -p ifill.zip | grep -aoE 'https://[a-z0-9.-]+' | sort -u` prints only `generativelanguage.googleapis.com`, plus the link targets `aistudio.google.com` and `github.com` (popup links the user clicks).
 - [ ] **No remote code:** `unzip -p ifill.zip | grep -acE 'eval\(|new Function|<script src="http|import\(')` prints `0`.

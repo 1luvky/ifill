@@ -11,8 +11,9 @@
 # After zipping, it checks that:
 #   - every file the extension references is in the zip,
 #   - nothing outside the allowlist slipped in,
-#   - the zip contains nothing that looks like a Gemini API key
-#     or the developer's personal email.
+#   - the zip contains nothing that looks like a Gemini API key,
+#     no email address except the support address in popup.js,
+#     and no local file paths.
 set -eu
 
 cd "$(dirname "$0")"
@@ -65,9 +66,14 @@ expected=$(echo "$FILES" | sort)
 if unzip -p "$OUT" | LC_ALL=C grep -aqE 'AIza[0-9A-Za-z_-]{30,}'; then
   fail "something that looks like a Gemini API key is inside the zip"
 fi
-#    The support email is meant to be in the popup; anything else personal is not.
-if unzip -p "$OUT" | LC_ALL=C grep -aqiE 'lucky\.chaudhary|/Users/'; then
-  fail "a personal path or address is inside the zip"
+#    The only email address allowed is the support address set in popup.js.
+support=$(sed -nE "s/^ *email: '([^']+)'.*/\1/p" popup.js)
+[ -n "$support" ] || fail "could not find the support email in popup.js"
+others=$(unzip -p "$OUT" | LC_ALL=C grep -aoE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | sort -u | grep -vxF "$support" || true)
+[ -z "$others" ] || fail "unexpected email address inside the zip: $others"
+#    No local file paths (macOS, Linux or Windows home folders).
+if unzip -p "$OUT" | LC_ALL=C grep -aqE '/Users/|/home/|[A-Za-z]:\\Users\\'; then
+  fail "a local file path (/Users/, /home/ or C:\\Users\\) is inside the zip"
 fi
 
 version=$(sed -nE 's/.*"version": *"([^"]+)".*/\1/p' manifest.json)
