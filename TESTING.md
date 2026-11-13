@@ -29,14 +29,14 @@ You need:
 - [ ] In the test profile, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and choose `/tmp/ifill-release`.
 - [ ] The card shows **iFill**, the correct version, the blue check icon, and **no errors**.
 - [ ] Under **Details**:
-  - [ ] the description is the official one;
+  - [ ] the description reads exactly “Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.”;
   - [ ] **Site access** lists only `generativelanguage.googleapis.com`;
   - [ ] there is no "read and change all your data on all websites" warning.
 - [ ] Pin iFill to the toolbar. The icon is sharp, and the tooltip reads "iFill: quiz & form testing assistant".
 
 ## 3. First run (onboarding)
 
-- [ ] Opening the popup shows the welcome screen with the official description and the **Privacy** notice.
+- [ ] Opening the popup shows the welcome screen with the description “Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.”, then “It never submits without asking you.”, and the **Privacy** notice.
 - [ ] The **aistudio.google.com** link opens Google AI Studio in a new tab.
 - [ ] The footer shows **Report a problem · lucky.tdr18@gmail.com · Privacy · v<version>**, and each link opens correctly (GitHub issue form pre-filled, mail draft, privacy policy).
 - [ ] Wrong key: paste `AIzaNotARealKey`, then **Test connection**. A clear **Bad API key** error appears.
@@ -75,6 +75,7 @@ Use `http://localhost:8000/sample-quiz/`, never a real quiz.
 - [ ] Clicking **Send**: every request in the Network tab goes to `generativelanguage.googleapis.com`. Each request URL has **no** `key=` parameter, because the key is only in the `x-goog-api-key` header.
 - [ ] Gemini answers q1 to q7, including the diagram (q4), the image-only options (q5) and the canvas text (q6). The essay is skipped.
 - [ ] q7: Gemini chooses **366**, which disagrees with the planted wrong key (365).
+- [ ] After you confirm Submit, the sample results page shows q7 marked wrong, with 366 chosen and 365 as the correct answer. That is how you find a bad key: iFill itself does not compare answers or calculate an expected score.
 - [ ] It still asks before Submit.
 - [ ] Running the same quiz again uses the cache: no new Gemini requests for questions already answered.
 
@@ -87,6 +88,14 @@ Use `http://localhost:8000/sample-quiz/`, never a real quiz.
 **On-page UI and Stop**
 - [ ] While running, there is only a small dot in the bottom-right corner. Hovering shows "iFill · …" and a Stop button.
 - [ ] **Stop**, from the dot or the popup, stops the run, and nothing more is clicked.
+
+**History and cache**
+- [ ] Open **Settings**. The "History and cache" section shows the counts, for example "Stored: 6 runs, 7 cached answers".
+- [ ] Start a run and open Settings while it is running or waiting for Submit. **Clear history and cache** is greyed out, and the text says a run is in progress.
+- [ ] After the run ends, click **Clear history and cache**. A confirmation shows the same counts. Click **Cancel**: nothing changes.
+- [ ] Click it again, then **Delete**. It shows "History and cache cleared…", the section reads "Nothing stored.", and the button is disabled.
+- [ ] In the service worker console, `await chrome.storage.local.get(null)` shows only `apiKey` and `settings`. There is no `answerCache`, `runsIndex`, `activeRuns` or `run_…`.
+- [ ] Run **Dry run** again. It sends new Gemini requests, which shows the cache really was emptied.
 
 ## 6. Logging and leaks
 
