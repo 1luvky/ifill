@@ -43,6 +43,7 @@
     .status.ok { background: var(--okbg); color: var(--ok); }
     .status.err { background: var(--errbg); color: var(--err); }
     .status.busy { background: var(--card); color: var(--muted); }
+    button.danger { background: var(--err); border-color: var(--err); color: var(--bg); }
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
     details { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 6px; }
     summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
@@ -117,6 +118,20 @@
         <div class="btns"><button id="import-btn">Import</button></div>
       </div>
       <div id="settings-status"></div>
+
+      <h2>History and cache</h2>
+      <p class="small muted">Run history (questions, answers, Gemini's reasoning, page titles and addresses) and
+        cached Gemini answers, stored in this browser. Your key and settings are kept.</p>
+      <p class="small" id="history-info"></p>
+      <div class="btns"><button id="clear-history">Clear history and cache</button></div>
+      <div id="history-confirm" hidden>
+        <p class="small" id="history-confirm-text"></p>
+        <div class="btns">
+          <button class="danger" id="history-yes">Delete</button>
+          <button id="history-no">Cancel</button>
+        </div>
+      </div>
+      <div id="history-status"></div>
     </details>
   </section>
 

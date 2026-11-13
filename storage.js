@@ -101,6 +101,27 @@ export async function clearApiKey() {
   ]);
 }
 
+// ---------- run history + answer cache (never touches the key or settings) ----------
+
+const HISTORY_KEYS = ['answerCache', 'runsIndex', 'activeRuns'];
+const isHistoryKey = (k) => k.startsWith('run_') || HISTORY_KEYS.includes(k);
+
+/** Counts what "Clear history and cache" would delete: {runs, cached}. */
+export async function getHistoryStats() {
+  const all = await chrome.storage.local.get(null);
+  return {
+    runs: Object.keys(all).filter((k) => k.startsWith('run_')).length,
+    cached: Object.keys(all.answerCache || {}).length,
+  };
+}
+
+/** Deletes run history and the answer cache. The API key and settings are kept. */
+export async function clearHistoryAndCache() {
+  const all = await chrome.storage.local.get(null);
+  const keys = Object.keys(all).filter(isHistoryKey);
+  if (keys.length) await chrome.storage.local.remove(keys);
+}
+
 /** For display only: "AIza…x7Qk". */
 export function maskKey(key) {
   if (!key) return '';

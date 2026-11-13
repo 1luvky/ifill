@@ -44,6 +44,12 @@ async function handle(msg, tabId) {
     case 'continueRun': return { run: await continueRun(tabId) };
     case 'getRun': return { run: await getRunForTab(tabId) };
     case 'listRuns': return { runs: (await chrome.storage.local.get('runsIndex')).runsIndex || [] };
+    // Handled here (not in the popup) because only the service worker knows whether a run loop is alive.
+    case 'historyStats': return { ...(await storage.getHistoryStats()), busy: live.size > 0 };
+    case 'clearHistory':
+      if (live.size > 0) throw new Error('A run is in progress. Stop it first, then clear.');
+      await storage.clearHistoryAndCache();
+      return { ...(await storage.getHistoryStats()), busy: false };
     default: throw new Error(`Unknown message type: ${msg.type}`);
   }
 }

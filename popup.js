@@ -243,6 +243,56 @@ $('import-btn').addEventListener('click', async () => {
   }
 });
 
+// ---------------- history + cache ----------------
+// The service worker answers, because only it knows whether a run is alive.
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const describe = (s) => `${plural(s.runs, 'run')}, ${plural(s.cached, 'cached answer')}`;
+
+async function refreshHistory() {
+  const r = await chrome.runtime.sendMessage({ type: 'historyStats' }).catch(() => null);
+  if (!r?.ok) { $('history-info').textContent = ''; return null; }
+  const empty = r.runs === 0 && r.cached === 0;
+  $('history-info').textContent = r.busy ? `${describe(r)}. A run is in progress: stop it before clearing.`
+    : empty ? 'Nothing stored.' : `Stored: ${describe(r)}.`;
+  $('clear-history').disabled = r.busy || empty;
+  if (r.busy) $('history-confirm').hidden = true;
+  return r;
+}
+
+$('settings').addEventListener('toggle', () => { if ($('settings').open) refreshHistory(); });
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === 'runUpdate' && $('settings').open) refreshHistory();
+});
+
+$('clear-history').addEventListener('click', async () => {
+  $('history-status').replaceChildren();
+  const r = await refreshHistory();
+  if (!r || r.busy) return;
+  $('history-confirm-text').textContent =
+    `Delete ${describe(r)}? Paused runs can no longer be continued. Your key and settings are kept. This cannot be undone.`;
+  $('history-confirm').hidden = false;
+  $('clear-history').hidden = true;
+});
+
+$('history-no').addEventListener('click', () => {
+  $('history-confirm').hidden = true;
+  $('clear-history').hidden = false;
+});
+
+$('history-yes').addEventListener('click', async () => {
+  $('history-confirm').hidden = true;
+  $('clear-history').hidden = false;
+  const r = await chrome.runtime.sendMessage({ type: 'clearHistory' }).catch((e) => ({ ok: false, error: e.message }));
+  if (r?.ok) {
+    status($('history-status'), 'ok', 'History and cache cleared. Your key and settings were kept.');
+    if (currentTabId != null) renderRun(null);
+  } else {
+    status($('history-status'), 'err', r?.error || 'Could not clear.');
+  }
+  await refreshHistory();
+});
+
 // ---------------- key + model form ----------------
 
 function mountKeyForm(slot, { onboarding }) {
