@@ -1,6 +1,6 @@
 # iFill Privacy Policy
 
-**Effective date:** 13 November 2026
+**Effective date:** 14 November 2026 (version 1.1)
 **Developer:** Lucky, lucky.tdr18@gmail.com
 
 iFill is a Chrome extension. Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.
@@ -15,7 +15,8 @@ iFill is a Chrome extension. Quiz & form testing assistant for quiz creators: fi
 
 iFill reads a web page only when you click its toolbar icon and start a run on that tab. It uses Chrome's `activeTab` permission and has no access to other sites or tabs. On that page it reads:
 
-- question and option text;
+- question and option text, and the labels of answer boxes (for example, whether a box takes a number and how many characters it allows);
+- whether an answer box already has text in it, so that iFill never overwrites what you typed (this text is not sent or stored);
 - images in questions and options;
 - where an image or text can't be read directly, a screenshot crop of that image, option or question (only in the AI modes; see "Screenshots and crops" below);
 - the page's title and address;
@@ -26,9 +27,10 @@ iFill reads a web page only when you click its toolbar icon and start a run on t
 | Mode | Sent to Google |
 |---|---|
 | Scoring test | **Nothing.** This mode does not use the network. |
-| Key validation | Question text, option text, images from the questions and options, and screenshot crops of a question, option or image where needed |
+| Key validation | Question text, option text, images from the questions and options, and screenshot crops of a question, option or image where needed. For short-answer and paragraph questions: the question text, and whether the box takes only a number and its character limit. |
 | Dry run | Same as Key validation |
 
+- **Never sent:** personal-detail fields (name, email, roll number, ID and similar) are skipped entirely, and their labels are not sent. Text already typed in an answer box is not sent.
 - Requests go only to `generativelanguage.googleapis.com`, Google's Gemini API. Your API key is sent in a request header to that address and nowhere else.
 - By default, iFill asks you to confirm before any quiz content is sent.
 - Google handles this data under its own terms, the [Gemini API Additional Terms of Service](https://ai.google.dev/gemini-api/terms) and the [Google Privacy Policy](https://policies.google.com/privacy). **On the free tier, Google may use the content you send to improve its products, and humans may review it.** Do not use the AI modes on confidential quizzes.
@@ -49,9 +51,9 @@ All of this is stored using Chrome's extension storage on your own computer. Non
 | Data | Where | Kept until |
 |---|---|---|
 | Your Gemini API key | This browser only. If you tick "Sync key across my Chrome profile", it is stored in Chrome sync instead, and Google syncs it to your other signed-in Chrome browsers. | You click **Clear key** or remove the extension |
-| Settings: model, mode, answer pattern, confirmation preference | This browser only | You change them or remove the extension |
-| Answer cache, so re-runs don't repeat requests: for each question already asked (looked up by a hash of the question), Gemini's chosen option text, its reasoning and confidence, and any text Gemini read from images | This browser only | Up to 3,000 entries, oldest dropped first. Cleared with **Clear history and cache**, or by removing the extension. |
-| Run history, last 30 runs: page titles and addresses (URLs), question and option text, planned answers, Gemini's reasoning and confidence, text Gemini read from images, a log, and the displayed score | This browser only | Older runs are deleted automatically. Cleared with **Clear history and cache**, or by removing the extension. |
+| Settings: model, mode, answer pattern, the Scoring-test text, confirmation preference | This browser only | You change them or remove the extension |
+| Answer cache, so re-runs don't repeat requests: for each question already asked (looked up by a hash of the question), Gemini's chosen option text or written answer (a short answer or a paragraph), its reasoning and confidence, and any text Gemini read from images | This browser only | Up to 3,000 entries, oldest dropped first. Cleared with **Clear history and cache**, or by removing the extension. |
+| Run history, last 30 runs: page titles and addresses (URLs), question and option text, planned answers (including the text iFill typed or would type), Gemini's reasoning and confidence, text Gemini read from images, a log, and the displayed score | This browser only | Older runs are deleted automatically. Cleared with **Clear history and cache**, or by removing the extension. |
 
 Images, screenshots and crops are used only during a run and are never stored.
 

@@ -65,23 +65,29 @@ Use `http://localhost:8000/sample-quiz/`, never a real quiz.
 **Scoring test (no AI)**
 - [ ] Choose **Scoring test** with pattern **Always the first option**. The "Confirm before sending" option is hidden.
 - [ ] Watch the service worker console's **Network** tab during the run: **no requests** at all.
-- [ ] It fills page 1, clicks Next, and fills page 2. The essay question is left blank.
+- [ ] It fills page 1, clicks Next, fills page 2, clicks Next, and fills page 3.
+- [ ] **Your name** is left empty. The essay and both short-answer boxes get **iFill test answer**, tagged "QA: typed …".
 - [ ] It **stops and asks** before Submit. Clicking Cancel does not submit.
-- [ ] Run again and confirm. The results page shows **1 / 7**: with "first option" only question 3 (True) is right. The popup shows the captured score.
-- [ ] Repeat on `?bug=score`. The page shows **2 / 7** although only 1 answer is right, so the planted scoring bug is visible.
-- [ ] Custom pattern `C,A+C,A,B,D,B,C` (the right answer to every question): the page shows **6 / 7**, because the q7 key is deliberately wrong (365 instead of 366).
+- [ ] Run again and confirm. The results page shows **1 / 9**: with "first option" only question 3 (True) is right, and both short answers are wrong. The popup shows the captured score.
+- [ ] Repeat on `?bug=score`. The page shows **2 / 9** although only 1 answer is right, so the planted scoring bug is visible.
+- [ ] Custom pattern `C,A+C,A,B,D,B,C` (the right answer to every choice question; one entry per choice question, text boxes don't take a slot): the page shows **6 / 9**, because the q7 key is deliberately wrong (365 instead of 366) and both short answers get the test text.
+- [ ] **Scoring-test text:** in the popup, change the text to `My QA check` and run again. The text boxes get `My QA check`. Clear the box: it goes back to `iFill test answer`.
+- [ ] **No overwriting:** reload the quiz, type your name and something in the planet box, then run. Both are left as you typed them, and the planet box is tagged "Already filled in".
 
 **Key validation (Gemini)**
 - [ ] With **Confirm before sending** on, a card asks before anything is sent to Google. Clicking **Cancel run** sends nothing: the Network tab shows no Gemini request.
 - [ ] Clicking **Send**: every request in the Network tab goes to `generativelanguage.googleapis.com`. Each request URL has **no** `key=` parameter, because the key is only in the `x-goog-api-key` header.
-- [ ] Gemini answers q1 to q7, including the diagram (q4), the image-only options (q5) and the canvas text (q6). The essay is skipped.
+- [ ] Gemini answers q1 to q7, including the diagram (q4), the image-only options (q5) and the canvas text (q6).
+- [ ] **Your name** is skipped and is **not** in any request body in the Network tab.
+- [ ] The essay (q8) gets 2–4 plain sentences. The planet question (q9) gets `Mars`. The minutes question (q10) gets a short answer, most likely `60`.
 - [ ] q7: Gemini chooses **366**, which disagrees with the planted wrong key (365).
-- [ ] After you confirm Submit, the sample results page shows q7 marked wrong, with 366 chosen and 365 as the correct answer. That is how you find a bad key: iFill itself does not compare answers or calculate an expected score.
+- [ ] After you confirm Submit, the sample results page shows **7 / 9**. q7 is marked wrong, with 366 chosen and 365 as the correct answer, and q10 is marked wrong because its key only accepts "sixty" (the planted strict key). That is how you find a bad key: iFill itself does not compare answers or calculate an expected score.
 - [ ] It still asks before Submit.
 - [ ] Running the same quiz again uses the cache: no new Gemini requests for questions already answered.
 
 **Dry run**
 - [ ] It shows Gemini's planned answer on each question and **clicks nothing**. All options stay unselected.
+- [ ] Go to page 2 and page 3 yourself and run Dry run on each. The essay (page 2) and the short answers (page 3) show "QA would type: …", and the boxes stay empty.
 
 **Screenshot fallback**
 - [ ] Open `http://localhost:8000/sample-quiz/?xorigin=1` and run a Dry run. The image questions are still answered, using screenshot crops.
@@ -91,7 +97,7 @@ Use `http://localhost:8000/sample-quiz/`, never a real quiz.
 - [ ] **Stop**, from the dot or the popup, stops the run, and nothing more is clicked.
 
 **History and cache**
-- [ ] Open **Settings**. The "History and cache" section shows the counts, for example "Stored: 6 runs, 7 cached answers".
+- [ ] Open **Settings**. The "History and cache" section shows the counts, for example "Stored: 6 runs, 10 cached answers".
 - [ ] Start a run and open Settings while it is running or waiting for Submit. **Clear history and cache** is greyed out, and the text says a run is in progress.
 - [ ] After the run ends, click **Clear history and cache**. A confirmation shows the same counts. Click **Cancel**: nothing changes.
 - [ ] Click it again, then **Delete**. It shows "History and cache cleared…", the section reads "Nothing stored.", and the button is disabled.

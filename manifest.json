@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "iFill",
   "short_name": "iFill",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.",
 
   "icons": {
