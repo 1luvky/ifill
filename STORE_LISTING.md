@@ -121,19 +121,14 @@ https://1luvky.github.io/ifill/PRIVACY.html
 
 ## Test instructions tab
 
-Paste this so reviewers can test without a real quiz or localhost:
+Paste this so reviewers can test without a real quiz or localhost (476 characters; the field allows 500):
 
 ```
-iFill is a testing tool for people who create quizzes. Please test it on our public sample quiz, not a real quiz:
-https://1luvky.github.io/ifill/sample-quiz/
-
-No account or login is needed.
-
-1. Open the sample quiz and click the iFill toolbar icon. Scoring test needs no API key: on the welcome screen click "Continue without a key". To test all modes, paste your own free Gemini key from https://aistudio.google.com/apikey instead and click Save.
-2. Choose "Scoring test" with "Always the first option" and click "Run on this tab". iFill selects answers on all three pages, types "iFill test answer" into the short-answer and paragraph boxes, leaves "Your name" empty, and then asks for confirmation before clicking Submit. Confirm, and the results page shows 1 / 9.
-3. Key validation and Dry run use Google's Gemini API with the user's own free API key (we do not share a key). With a key, Key validation answers each question and asks before sending anything to Google. Dry run shows the planned answers without clicking anything.
-
-iFill only acts on the tab where the user clicks its icon and starts a run, and it never submits without an explicit confirmation click.
+Test on our sample quiz: https://1luvky.github.io/ifill/sample-quiz/
+1. Click the iFill icon, then "Continue without a key".
+2. Choose Scoring test, "Always the first option", and click Run. iFill fills all 3 pages, types "iFill test answer" in text boxes, leaves "Your name" empty, and asks before Submit. Confirm: the score is 1 / 9.
+3. Key validation and Dry run need your own free Gemini key (aistudio.google.com/apikey).
+iFill never submits without a confirmation click.
 ```
 
 ---
