@@ -38,6 +38,7 @@ You need:
 
 - [ ] Opening the popup shows the welcome screen with the description “Quiz & form testing assistant for quiz creators: fills in answers, submits, and helps you check the answer key and score.”, then “It never submits without asking you.”, and the **Privacy** notice.
 - [ ] The **aistudio.google.com** link opens Google AI Studio in a new tab.
+- [ ] **Continue without a key** opens the main screen in Scoring test mode with "Key: not set". A Scoring test run works. Choosing Key validation and clicking Run shows "This mode needs a Gemini API key…". Add the key in Settings before continuing.
 - [ ] The footer shows **Report a problem · lucky.tdr18@gmail.com · Privacy · v<version>**, and each link opens correctly (GitHub issue form pre-filled, mail draft, privacy policy).
 - [ ] Wrong key: paste `AIzaNotARealKey`, then **Test connection**. A clear **Bad API key** error appears.
 - [ ] Wrong model: enter your real key, choose **Other**, type `gemini-does-not-exist`, then **Test connection**. A clear **Wrong model** error appears.

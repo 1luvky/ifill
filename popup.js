@@ -27,10 +27,16 @@ init();
 async function init() {
   setUpFooter();
   settings = await storage.getSettings();
-  const hasKey = (await storage.getKeyLocation()) !== 'none';
-  if (!settings.onboarded || !hasKey) showOnboarding();
+  // Scoring test needs no key, so a user who skipped the key still gets the main view.
+  if (!settings.onboarded) showOnboarding();
   else await showMain();
 }
+
+$('skip-key').addEventListener('click', async (e) => {
+  e.preventDefault();
+  settings = await storage.saveSettings({ onboarded: true, mode: 'scoring' });
+  await showMain();
+});
 
 // Footer links. The issue form is pre-filled with the iFill and Chrome versions only;
 // nothing about the user's key, settings or quizzes is included.
