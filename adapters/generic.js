@@ -3,12 +3,18 @@
 //
 // Finds choice widgets (native radio/checkbox/select, or ARIA role=radio/checkbox
 // as used by Google Forms), groups them into questions, and finds each question's text.
+// Also finds free-text fields: one-line ('text'), multi-line ('paragraph'), and
+// personal-detail fields such as name, email or roll number ('detail'), which are
+// reported so they can be left for the user and never filled.
 //
 // Adapter interface (all adapters):
 //   detectPlatform()          -> number 0..1 (how sure this adapter fits the page)
-//   extractQuestions()        -> [{id, index, type, text, options:[{id,text,hasImage}], hasImages, needsScreenshot}]
+//   extractQuestions()        -> [{id, index, type, text, options:[{id,text,hasImage}], hasImages, needsScreenshot,
+//                                  maxLength?, numeric?}]   type: single|multi|truefalse|text|paragraph|detail|dropdown
 //   selectAnswer(q, optId, checked=true) -> Promise<{ok, before, after}>
 //   isChecked(q, optId)       -> boolean
+//   getText(q)                -> string   (text/paragraph/detail fields)
+//   setText(q, text)          -> Promise<{ok, before, after, reason?}>  never overwrites a field that already has other text
 //   getElements(q)            -> {container, options:[el]}   (for image capture / highlighting)
 //   findNextButton()          -> element | null
 //   goNextPage()              -> boolean (clicked a Next button?)
@@ -26,6 +32,19 @@
   const NEXT_RE = /^\s*(next|next page|continue|weiter|suivant|siguiente|próximo|avanti)\s*[›>→]?\s*$/i;
   const SUBMIT_RE = /^\s*(submit|submit quiz|submit all and finish|finish|finish attempt|send|turn in|done|absenden|envoyer|enviar)\s*$/i;
   const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  // Free-text fields. [role=textbox] covers contenteditable editors.
+  const TEXT_SELECTOR = [
+    'textarea', 'input[type=text]', 'input:not([type])', 'input[type=number]',
+    'input[type=email]', 'input[type=tel]', '[role=textbox]:not(input):not(textarea)',
+  ].join(',');
+  // Personal-detail fields are recognised by their input type, autocomplete hint, or a
+  // question title that is ONLY a details label ("Your name", "Roll number:", "Email address *").
+  // Matching the whole title keeps real questions like "What is the name of…" fillable.
+  const PERSONAL_AUTOCOMPLETE = /^(name|given-name|family-name|additional-name|nickname|email|tel|tel-national|username|organization|street-address|postal-code|bday)$/i;
+  const PERSONAL_TITLE = /^(your\s+|student'?s?\s+)?((full\s+|first\s+|last\s+|middle\s+)?name|surname|e-?mail(\s+address|\s+id)?|roll\s*(no\.?|number|#)?|student\s*(id|no\.?|number)|registration\s*(no\.?|number)|enrol?ment\s*(no\.?|number)|admission\s*(no\.?|number)|(phone|mobile|contact)(\s+(no\.?|number))?|class(\s*(and|&)\s*section)?|section|school(\s+name)?|date\s+of\s+birth|id(\s+number)?)\s*[:*.]?$/i;
+  // Labels like "Your answer" say nothing about the question.
+  const GENERIC_LABEL = /^(your answer|answer|short answer text|long answer text|type your answer|enter your answer|antwort|réponse|respuesta)$/i;
 
   /** id -> {container, optionEls[], selectEl} from the latest extractQuestions(). */
   let refs = new Map();
@@ -196,6 +215,84 @@
     return clean(b.innerText || b.value || b.getAttribute('aria-label') || '');
   }
 
+  // ---------------- free-text fields ----------------
+
+  const isMultiline = (el) => el.tagName === 'TEXTAREA' || el.getAttribute('aria-multiline') === 'true';
+
+  /** The question a text field belongs to: its labelledby/heading/label, skipping generic "Your answer" labels. */
+  function textFieldQuestion(el, container) {
+    const cands = [
+      textOfIds(el.getAttribute('aria-labelledby')),
+      container.querySelector('[role=heading], h1, h2, h3, h4, h5, h6, legend')?.innerText,
+      el.tagName !== 'DIV' ? labelFor(el)?.innerText : '',
+      el.getAttribute('aria-label'),
+      el.getAttribute('placeholder'),
+    ];
+    for (const c of cands) {
+      const t = cleanQuestionText(c);
+      if (t && !GENERIC_LABEL.test(t)) return t;
+    }
+    return '';
+  }
+
+  /** 'detail' for personal-detail fields (left for the user), else 'paragraph' or 'text'. */
+  function textKind(el, questionTitle) {
+    const auto = (el.getAttribute('autocomplete') || '').trim().split(/\s+/).pop();
+    if (el.type === 'email' || el.type === 'tel' || PERSONAL_AUTOCOMPLETE.test(auto) || PERSONAL_TITLE.test(questionTitle)) {
+      return 'detail';
+    }
+    return isMultiline(el) ? 'paragraph' : 'text';
+  }
+
+  function fieldOf(q) {
+    const el = ref(q).fieldEl;
+    if (!el) throw new Error(`Question ${q.id} has no text field.`);
+    return el;
+  }
+
+  const readField = (el) => (el.isContentEditable ? el.innerText : el.value) || '';
+
+  function getText(q) {
+    return readField(fieldOf(q));
+  }
+
+  /**
+   * Types text so page frameworks (React, Angular, Google/Microsoft Forms) register it:
+   * uses the native value setter, then fires input/change/blur like a real user.
+   * Never overwrites a field that already holds different text.
+   */
+  async function setText(q, text) {
+    const el = fieldOf(q);
+    const before = readField(el);
+    let value = String(text ?? '');
+    const truncated = el.maxLength > 0 && value.length > el.maxLength;
+    if (truncated) value = value.slice(0, el.maxLength);
+    if (before.trim() === value.trim()) return { ok: true, before, after: before };
+    if (before.trim() !== '') return { ok: false, before, after: before, reason: 'The field already has text; left as it is.' };
+
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    el.focus();
+    if (el.isContentEditable) {
+      // execCommand keeps the editor's own undo/input handling; fall back to plain text.
+      if (!document.execCommand('insertText', false, value)) el.textContent = value;
+    } else {
+      const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+    }
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new FocusEvent('blur'));
+    el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    await new Promise((res) => setTimeout(res, 80));
+    const after = readField(el);
+    const ok = after.trim() === value.trim();
+    return {
+      ok, before, after,
+      ...(truncated ? { truncated: true } : {}),
+      ...(ok ? {} : { reason: el.type === 'number' ? 'The field only accepts numbers.' : 'The page did not keep the typed text.' }),
+    };
+  }
+
   // ---------------- interface ----------------
 
   function detectPlatform() {
@@ -238,17 +335,21 @@
       });
     }
 
-    // Free-text / custom dropdowns: report them so they are flagged, never guessed.
+    // Free-text fields -> text / paragraph / detail. Custom ARIA dropdowns stay unsupported.
     const covered = (el) => items.some((it) => it.container.contains(el));
-    for (const el of document.querySelectorAll('textarea, input[type=text], input:not([type]), input[type=number], [role=listbox]')) {
+    for (const el of document.querySelectorAll(TEXT_SELECTOR + ', [role=listbox]')) {
       if (isOurs(el) || !visible(el) || covered(el)) continue;
+      if (el.disabled || el.readOnly || el.getAttribute('aria-readonly') === 'true' || el.getAttribute('aria-disabled') === 'true') continue;
       const container = findContainer({ groupEl: el, els: [el] }, optionEls);
-      const kind = el.getAttribute('role') === 'listbox' ? 'dropdown' : el.tagName === 'TEXTAREA' ? 'essay' : 'fill-in';
-      items.push({
-        container, type: kind, optionEls: [], options: [],
-        text: cleanQuestionText(container.querySelector('[role=heading],h1,h2,h3,h4,legend,label')?.innerText
-          || el.getAttribute('aria-label') || ''),
-      });
+      const text = textFieldQuestion(el, container);
+      if (el.getAttribute('role') === 'listbox') {
+        items.push({ container, type: 'dropdown', text, optionEls: [], options: [] });
+        continue;
+      }
+      const item = { container, type: textKind(el, text), text, optionEls: [], options: [], fieldEl: el };
+      if (el.maxLength > 0) item.maxLength = el.maxLength;
+      if (el.type === 'number') item.numeric = true;
+      items.push(item);
     }
 
     // Page order.
@@ -260,10 +361,12 @@
       const n = (seen.get(id) || 0) + 1;
       seen.set(id, n);
       if (n > 1) id += '_' + n;
-      refs.set(id, { container: it.container, optionEls: it.optionEls, selectEl: it.selectEl || null });
+      refs.set(id, { container: it.container, optionEls: it.optionEls, selectEl: it.selectEl || null, fieldEl: it.fieldEl || null });
       const hasCanvas = !!it.container.querySelector('canvas');
       return {
         id, index, type: it.type, text: it.text, options: it.options,
+        ...(it.maxLength ? { maxLength: it.maxLength } : {}),
+        ...(it.numeric ? { numeric: true } : {}),
         hasImages: hasImageIn(it.container),
         // No readable text (e.g. drawn on canvas, or text is an image): needs a screenshot.
         needsScreenshot: !it.text || (hasCanvas && it.text.length < 5),
@@ -380,7 +483,7 @@
   globalThis.QuizQAAdapters = globalThis.QuizQAAdapters || {};
   globalThis.QuizQAAdapters.generic = {
     name: 'generic',
-    detectPlatform, extractQuestions, selectAnswer, isChecked, getElements,
+    detectPlatform, extractQuestions, selectAnswer, isChecked, getText, setText, getElements,
     findNextButton, goNextPage, findSubmitButton, submit, isResultsPage, scrapeResults,
   };
 })();
