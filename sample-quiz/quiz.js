@@ -47,11 +47,16 @@
     item.append(heading);
     if (q.image) item.append(el('img', { src: imgSrc(q.image), class: 'q-image', alt: '' }));
 
-    if (q.type === 'short') {
-      const ta = el('textarea', { 'aria-label': 'Your answer' });
-      ta.value = answers[q.id]?.[0] || '';
-      ta.addEventListener('input', () => { answers[q.id] = [ta.value]; });
-      item.append(ta);
+    // Text questions: one-line input (short answer, personal detail) or a textarea (paragraph).
+    if (q.type === 'short' || q.type === 'paragraph' || q.type === 'detail') {
+      const field = q.type === 'paragraph'
+        ? el('textarea', { 'aria-label': 'Your answer' })
+        : el('input', q.type === 'detail'
+          ? { type: 'text', 'aria-label': q.text, autocomplete: 'name' }
+          : { type: 'text', 'aria-label': 'Your answer', autocomplete: 'off' });
+      field.value = answers[q.id]?.[0] || '';
+      field.addEventListener('input', () => { answers[q.id] = [field.value]; });
+      item.append(field);
       return item;
     }
 

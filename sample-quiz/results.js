@@ -14,6 +14,9 @@
   }
 
   const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+  // Short answers match if they equal an accepted answer, ignoring case and extra spaces.
+  const norm = (t) => String(t || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const textMatches = (given, accepted) => accepted.some((a) => norm(a) === norm(given));
   let earned = 0, possible = 0;
   const list = $('results');
 
@@ -30,11 +33,37 @@
       heading.textContent = q.text || q.canvasText;
       card.append(heading);
 
-      if (q.type === 'short') {
+      // Personal details and paragraphs: shown, not graded.
+      if (q.type === 'detail' || q.type === 'paragraph') {
         const p = document.createElement('div');
         p.className = 'your-answer';
-        p.textContent = 'Your answer: ' + (chosen[0] || '(blank)');
+        p.textContent = `${q.type === 'detail' ? q.text : 'Your answer'}: ${chosen[0] || '(blank)'}`
+          + (q.type === 'paragraph' ? ' (not graded)' : '');
         card.append(p);
+        list.append(card);
+        continue;
+      }
+
+      // Short answer: graded against the accepted answers.
+      if (q.type === 'short') {
+        const given = chosen[0] || '';
+        const ok = given.trim() !== '' && textMatches(given, q.key);
+        const pts = ok ? q.points : 0;
+        earned += pts; possible += q.points;
+        const ptsEl = document.createElement('span');
+        ptsEl.className = 'points';
+        ptsEl.textContent = `${pts}/${q.points}`;
+        heading.prepend(ptsEl);
+        const p = document.createElement('div');
+        p.className = `res-opt chosen ${ok ? 'right' : 'wrong'}`;
+        p.textContent = `${ok ? '✓' : '✗'} Your answer: ${given || '(blank)'}`;
+        card.append(p);
+        if (!ok) {
+          const ca = document.createElement('div');
+          ca.className = 'correct-answer';
+          ca.textContent = 'Accepted answers: ' + q.key.join(', ');
+          card.append(ca);
+        }
         list.append(card);
         continue;
       }

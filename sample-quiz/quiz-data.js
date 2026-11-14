@@ -6,6 +6,12 @@
 //   ?bug=score  - results page shows a total 1 point higher than it should.
 //   ?bug=save   - the quiz silently records the FIRST option for q1, whatever you pick.
 //   ?xorigin=1  - images load from another origin (tests the screenshot fallback).
+//   q10 - short-answer key is TOO STRICT on purpose: it accepts only "sixty", so "60" is marked wrong.
+//
+// TEXT QUESTIONS (iFill 1.1):
+//   name - a personal-details field. iFill must leave it for you, never fill it.
+//   q8   - paragraph, not graded.
+//   q9, q10 - short answer, graded. Matching ignores case and extra spaces.
 
 const SAMPLE_QUIZ = {
   title: 'Sample QA Quiz',
@@ -14,6 +20,7 @@ const SAMPLE_QUIZ = {
     {
       title: 'Section 1: Text questions',
       questions: [
+        { id: 'name', type: 'detail', points: 0, text: 'Your name' },
         { id: 'q1', type: 'single', points: 1, text: 'What is the capital of France?',
           options: ['Berlin', 'Madrid', 'Paris', 'Rome'], key: ['Paris'] },
         { id: 'q2', type: 'multi', points: 1, text: 'Which of these are prime numbers? (Select all that apply)',
@@ -38,7 +45,16 @@ const SAMPLE_QUIZ = {
           options: ['54', '56', '58', '64'], key: ['56'] },
         { id: 'q7', type: 'single', points: 1, text: 'How many days are there in a leap year?',
           options: ['364', '365', '366', '367'], key: ['365'] /* WRONG ON PURPOSE */ },
-        { id: 'q8', type: 'short', points: 0, text: 'In one sentence, what does photosynthesis produce? (not graded)' },
+        { id: 'q8', type: 'paragraph', points: 0, text: 'In a few sentences, explain what photosynthesis produces and why it matters. (not graded)' },
+      ],
+    },
+    {
+      title: 'Section 3: Short answers',
+      questions: [
+        { id: 'q9', type: 'short', points: 1, text: 'Which planet is known as the Red Planet?',
+          key: ['Mars'] },
+        { id: 'q10', type: 'short', points: 1, text: 'How many minutes are there in one hour?',
+          key: ['sixty'] /* TOO STRICT ON PURPOSE: "60" is not accepted */ },
       ],
     },
   ],
