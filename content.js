@@ -4,8 +4,9 @@
 // Commands ({type, ...} via chrome.runtime messages, or QuizQA.handle(msg) in the page console):
 //   ping                         -> {ready, adapter, url}
 //   extract                      -> {adapter, url, title, questions, hasNext, hasSubmit, isResults}
-//   applyAnswers {plan:[{id, answer:[optIds]}]} -> {results:[{id, ok, wanted, checked, error?}]}
-//   readSelections {ids?}        -> {selections:[{id, checked:[optIds]}]}
+//   applyAnswers {plan:[{id, answer:[optIds]} | {id, text}]}
+//                                -> {results:[{id, ok, wanted, checked, text?, truncated?, error?}]}
+//   readSelections {ids?}        -> {selections:[{id, checked:[optIds], text?}]}
 //   nextPage                     -> {moved}   (no reply if the page navigates away; background expects that)
 //   confirm {title, message, okLabel, cancelLabel} -> {ok}   (in-page dialog)
 //   submit                       -> {clicked}  (background only sends this after the user confirmed)
@@ -59,15 +60,34 @@
     };
   }
 
+  // Free-text questions iFill may type into. 'detail' (name, email, roll number…) is never typed into.
+  const TEXT_TYPES = new Set(['text', 'paragraph']);
+  const isTextQuestion = (q) => TEXT_TYPES.has(q.type) || q.type === 'detail';
+
+  async function applyText(q, text) {
+    if (q.type === 'detail') throw new Error('Personal-details field: left for you to fill in.');
+    if (typeof adapter.setText !== 'function') throw new Error(`The ${adapter.name} adapter cannot type text answers.`);
+    if (typeof text !== 'string' || !text.trim()) throw new Error('No text to type.');
+    const r = await adapter.setText(q, text);
+    await sleep(120); // let the page's own code save the text
+    const typed = safe(() => adapter.getText(q), r.after);
+    return {
+      id: q.id, ok: !!r.ok, wanted: [], checked: [], text: typed,
+      ...(r.truncated ? { truncated: true } : {}),
+      ...(r.ok ? {} : { error: r.reason || 'The text was not kept.' }),
+    };
+  }
+
   function checkedIds(q) {
     return q.options.filter((o) => safe(() => adapter.isChecked(q, o.id), false)).map((o) => o.id);
   }
 
   async function applyAnswers(plan) {
     const results = [];
-    for (const { id, answer } of plan) {
+    for (const { id, answer, text } of plan) {
       try {
         const q = questionById(id);
+        if (isTextQuestion(q)) { results.push(await applyText(q, text)); continue; }
         const wanted = [...new Set(answer || [])];
         if (q.type === 'multi') {
           // Make the checked set exactly equal to `wanted`.
@@ -92,7 +112,11 @@
 
   function readSelections(ids) {
     const list = ids?.length ? ids.map(questionById) : [...lastQuestions.values()];
-    return { selections: list.map((q) => ({ id: q.id, checked: checkedIds(q) })) };
+    return {
+      selections: list.map((q) => (isTextQuestion(q)
+        ? { id: q.id, checked: [], text: safe(() => adapter.getText(q), '') }
+        : { id: q.id, checked: checkedIds(q) })),
+    };
   }
 
   async function nextPage() {
@@ -286,7 +310,8 @@
       .stripe { position: absolute; width: 3px; border-radius: 2px; pointer-events: none; opacity: .8; }
       .stripe.fail { background: #d93025; } .stripe.skip { background: #f9ab00; }
       .tag { position: absolute; top: -9px; right: 8px; font: 11px/1 system-ui, sans-serif; color: #fff;
-        padding: 3px 5px; border-radius: 3px; white-space: nowrap; max-width: 50vw; overflow: hidden; text-overflow: ellipsis; }
+        padding: 3px 5px; border-radius: 3px; white-space: nowrap; max-width: 50vw; overflow: hidden; text-overflow: ellipsis;
+        pointer-events: auto; cursor: default; } /* hover shows the full label (e.g. a planned paragraph) */
       .planned { border-color: #1a73e8; } .planned .tag { background: #1a73e8; }
       .ok { border-color: #34a853; } .ok .tag { background: #188038; }
       .fail { border-color: #d93025; } .fail .tag { background: #d93025; }
@@ -352,6 +377,7 @@
         const tag = document.createElement('div');
         tag.className = 'tag';
         tag.textContent = h.label;
+        tag.title = h.label;
         box.append(tag);
       }
       layer.append(box);
