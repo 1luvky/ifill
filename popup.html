@@ -88,7 +88,10 @@
         <option value="alternating">Alternating: 1st, 2nd, 1st, 2nd…</option>
         <option value="custom">Custom list</option>
       </select>
-      <input type="text" id="custom-pattern" placeholder="e.g. A,C,B,D or 1,3,2,4 (one per question)" hidden>
+      <input type="text" id="custom-pattern" placeholder="e.g. A,C,B+D or 1,3,2,4 (one per choice question)" hidden>
+      <label for="scoring-text">Text for short-answer and paragraph questions</label>
+      <input type="text" id="scoring-text" maxlength="200" placeholder="iFill test answer">
+      <p class="small muted">Number fields get "1". Name, email and ID fields, and boxes you already filled, are left alone.</p>
     </div>
 
     <label class="inline" id="confirm-row">

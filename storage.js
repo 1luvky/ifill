@@ -14,7 +14,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   model: DEFAULT_MODEL,
   mode: 'scoring',                // 'scoring' | 'key' | 'dryrun'
   scoringPattern: 'first',        // 'first' | 'alternating' | 'custom'
-  customPattern: '',              // e.g. "A,C,B,D" or "1,3,2,4"
+  customPattern: '',              // e.g. "A,C,B,D" or "1,3,2,4" (one per choice question)
+  scoringText: 'iFill test answer', // typed into short-answer/paragraph questions in Scoring test
   confirmBeforeSend: true,        // ask before sending quiz content to Google
   onboarded: false,               // first-run screen completed
 });
@@ -51,6 +52,10 @@ function sanitizeSettings(obj) {
   if (out.mode && !['scoring', 'key', 'dryrun'].includes(out.mode)) delete out.mode;
   if (out.scoringPattern && !['first', 'alternating', 'custom'].includes(out.scoringPattern)) {
     delete out.scoringPattern;
+  }
+  if (out.scoringText !== undefined) {
+    // One line, at most 200 characters; empty falls back to the default.
+    out.scoringText = out.scoringText.replace(/\s+/g, ' ').trim().slice(0, 200) || DEFAULT_SETTINGS.scoringText;
   }
   return out;
 }

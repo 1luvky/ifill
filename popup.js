@@ -82,6 +82,7 @@ async function showMain() {
   $('mode').value = settings.mode;
   $('pattern').value = settings.scoringPattern;
   $('custom-pattern').value = settings.customPattern;
+  $('scoring-text').value = settings.scoringText;
   $('confirm-send').checked = settings.confirmBeforeSend;
   updateModeUI();
   refreshRun();
@@ -218,6 +219,10 @@ $('pattern').addEventListener('change', async () => {
 });
 $('custom-pattern').addEventListener('change', async () => {
   settings = await storage.saveSettings({ customPattern: $('custom-pattern').value.trim() });
+});
+$('scoring-text').addEventListener('change', async () => {
+  settings = await storage.saveSettings({ scoringText: $('scoring-text').value });
+  $('scoring-text').value = settings.scoringText; // shows the cleaned-up or default text
 });
 $('confirm-send').addEventListener('change', async () => {
   settings = await storage.saveSettings({ confirmBeforeSend: $('confirm-send').checked });
