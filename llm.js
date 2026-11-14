@@ -213,8 +213,11 @@ export function normalizeModel(model) {
 
 import { getApiKey, getSettings } from './storage.js';
 
-const PROMPT_VERSION = 2;                      // bump to invalidate the cache when the prompt changes
-const SUPPORTED_TYPES = new Set(['single', 'multi', 'truefalse']);
+const PROMPT_VERSION = 3;                      // bump to invalidate the cache when the prompt changes
+const CHOICE_TYPES = new Set(['single', 'multi', 'truefalse']);
+const TEXT_TYPES = new Set(['text', 'paragraph']);   // 'detail' (name, email, ID…) is never sent
+const SHORT_MAX_WORDS = 12;
+const PARAGRAPH_MAX_WORDS = 120;
 const MAX_REQUEST_BYTES = 14 * 1024 * 1024;    // stay well under Gemini's ~20 MB inline request limit
 const MAX_QUESTIONS_PER_REQUEST = 60;
 const VALIDATION_RETRIES = 2;                  // re-ask for questions whose answer was missing/invalid
@@ -224,10 +227,13 @@ const CACHE_KEY = 'answerCache';
 const CACHE_MAX_ENTRIES = 3000;
 
 const SYSTEM_PROMPT = `You are helping a teacher quality-check a quiz they wrote, before it goes live.
-For each question, work out the correct option(s) from your own knowledge. No answer in the input is marked as correct; do not assume the first or any option is right.
+For each question, work out the correct answer from your own knowledge. No answer in the input is marked as correct; do not assume the first or any option is right.
 Rules:
-- Answer with option ids exactly as given (for example "A").
+- Choice questions: answer with option ids exactly as given (for example "A"), and leave textAnswer empty.
 - "single" and "truefalse": exactly one id. "multi": every correct id (one or more).
+- "text" (short answer): put the answer in textAnswer and leave answer as []. Write only the answer itself, the way a teacher's answer key would most likely list it: usually 1 to 5 words, no full sentence, no trailing full stop, no quotes. If the question says the answer must be a number, give digits only.
+- "paragraph": put a clear, correct answer of 2 to 4 sentences (at most ${PARAGRAPH_MAX_WORDS} words) in textAnswer, in plain text without lists, headings or markdown, and leave answer as [].
+- Respect any character limit given for a question.
 - Images are labeled with the question or option they belong to. Use them. If an option has no text, its image IS the option.
 - confidence: a number from 0 to 1, your probability that your whole answer is correct. Use low values if the question is ambiguous, an image is unclear, or several options could be right.
 - reasoning: one or two short sentences. Say so if the question itself looks flawed (ambiguous, no correct option, more than one correct option for a single-choice question).
@@ -244,12 +250,13 @@ const RESPONSE_SCHEMA = {
         properties: {
           id: { type: 'STRING' },
           answer: { type: 'ARRAY', items: { type: 'STRING' } },
+          textAnswer: { type: 'STRING' },
           confidence: { type: 'NUMBER' },
           reasoning: { type: 'STRING' },
           readText: { type: 'STRING' },
         },
-        required: ['id', 'answer', 'confidence', 'reasoning'],
-        propertyOrdering: ['id', 'answer', 'confidence', 'reasoning', 'readText'],
+        required: ['id', 'confidence', 'reasoning'],
+        propertyOrdering: ['id', 'answer', 'textAnswer', 'confidence', 'reasoning', 'readText'],
       },
     },
   },
@@ -261,6 +268,7 @@ const RESPONSE_SCHEMA = {
  * @param {{onProgress?: Function, signal?: AbortSignal}} opts
  * @returns {Promise<Array>} one result per question, same order:
  *   {id, status:'answered', answer:[ids], answerText:[texts], confidence, reasoning, model, cached}
+ *     text/paragraph questions: answer:[], textAnswer:'…', answerText:['…']
  *   {id, status:'skipped', reason}   - unsupported type / nothing to send
  *   {id, status:'error',   reason}   - model never gave a valid answer
  */
@@ -320,7 +328,12 @@ export async function clearAnswerCache() {
 // ---------- validation of input ----------
 
 function whyUnsupported(q) {
-  if (!SUPPORTED_TYPES.has(q.type)) return `Unsupported question type "${q.type}" (skipped, not guessed).`;
+  if (q.type === 'detail') return 'Personal-details field (name, email, ID…): left for you and never sent to Gemini.';
+  if (TEXT_TYPES.has(q.type)) {
+    const hasContent = q.text || q.screenshot || (q.images || []).length;
+    return hasContent ? '' : 'No question text or image found.';
+  }
+  if (!CHOICE_TYPES.has(q.type)) return `Unsupported question type "${q.type}" (skipped, not guessed).`;
   if (!Array.isArray(q.options) || q.options.length < 2) return 'Fewer than two options found.';
   const ids = q.options.map((o) => o.id);
   if (ids.some((x) => !x) || new Set(ids).size !== ids.length) return 'Options are missing ids or have duplicate ids.';
@@ -346,10 +359,16 @@ function questionParts(q) {
   const parts = [];
   const lines = [`### Question id="${q.id}" (type: ${q.type})`];
   lines.push(q.text ? q.text : '(Question text is only in the image(s) below.)');
-  lines.push('Options:');
-  for (const o of q.options) {
-    const imgNote = imageList(o.images).length ? ' [see image labeled for this option]' : '';
-    lines.push(`  ${o.id}) ${o.text || (imgNote ? '(no text)' : '(empty)')}${imgNote}`);
+  if (TEXT_TYPES.has(q.type)) {
+    lines.push(q.type === 'text' ? 'Answer field: one line (short answer).' : 'Answer field: paragraph.');
+    if (q.numeric) lines.push('The field only accepts a number.');
+    if (q.maxLength) lines.push(`Character limit: ${q.maxLength}.`);
+  } else {
+    lines.push('Options:');
+    for (const o of q.options) {
+      const imgNote = imageList(o.images).length ? ' [see image labeled for this option]' : '';
+      lines.push(`  ${o.id}) ${o.text || (imgNote ? '(no text)' : '(empty)')}${imgNote}`);
+    }
   }
   parts.push({ text: lines.join('\n') });
 
@@ -361,7 +380,7 @@ function questionParts(q) {
     parts.push({ text: `Image ${i + 1} for question "${q.id}":` });
     parts.push(toInlinePart(img));
   });
-  for (const o of q.options) {
+  for (const o of q.options || []) {
     imageList(o.images).forEach((img, i) => {
       parts.push({ text: `Image ${i + 1} for question "${q.id}", option ${o.id}:` });
       parts.push(toInlinePart(img));
@@ -446,8 +465,46 @@ function stripFences(s) {
   return s.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
 }
 
+function confidenceOf(a) {
+  let conf = Number(a.confidence);
+  if (!Number.isFinite(conf)) conf = 0.5;
+  if (conf > 1 && conf <= 100) conf /= 100;
+  return Math.round(Math.min(1, Math.max(0, conf)) * 100) / 100;
+}
+
+const wordCount = (t) => (t.match(/\S+/g) || []).length;
+
+function validateTextAnswer(q, a) {
+  let t = String(a.textAnswer ?? '').trim();
+  // Light clean-up of things the prompt asks for anyway: wrapping quotes, markdown emphasis.
+  t = t.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/\*\*|__/g, '').trim();
+  if (!t) return { ok: false, error: 'textAnswer is empty' };
+  if (q.type === 'text') {
+    t = t.replace(/\s*\n+\s*/g, ' ');
+    if (q.numeric) {
+      const num = t.replace(/[,\s]/g, '');
+      if (!/^-?\d+(\.\d+)?$/.test(num)) return { ok: false, error: 'this field only accepts a number: give digits only in textAnswer' };
+      t = num;
+    }
+    if (wordCount(t) > SHORT_MAX_WORDS) return { ok: false, error: `a short answer must be at most ${SHORT_MAX_WORDS} words` };
+  } else if (wordCount(t) > PARAGRAPH_MAX_WORDS) {
+    return { ok: false, error: `the paragraph must be at most ${PARAGRAPH_MAX_WORDS} words` };
+  }
+  if (q.maxLength && t.length > q.maxLength) return { ok: false, error: `the answer must be at most ${q.maxLength} characters` };
+  return {
+    ok: true,
+    result: {
+      id: q.id, status: 'answered', answer: [], textAnswer: t, answerText: [t],
+      confidence: confidenceOf(a),
+      reasoning: String(a.reasoning || '').slice(0, 600),
+      readText: String(a.readText || '').slice(0, 1000),
+    },
+  };
+}
+
 function validateAnswer(q, a) {
   if (!a) return { ok: false, error: 'missing from your reply' };
+  if (TEXT_TYPES.has(q.type)) return validateTextAnswer(q, a);
   const byUpper = new Map(q.options.map((o) => [String(o.id).toUpperCase(), o]));
   const raw = Array.isArray(a.answer) ? a.answer : [a.answer];
   const chosen = [...new Set(raw.map((x) => String(x ?? '').trim().replace(/[).]$/, '').toUpperCase()))]
@@ -457,11 +514,6 @@ function validateAnswer(q, a) {
   if (!chosen.length) return { ok: false, error: 'no option chosen' };
   if (q.type !== 'multi' && chosen.length !== 1) return { ok: false, error: `exactly one option required, got ${chosen.length}` };
 
-  let conf = Number(a.confidence);
-  if (!Number.isFinite(conf)) conf = 0.5;
-  if (conf > 1 && conf <= 100) conf /= 100;
-  conf = Math.min(1, Math.max(0, conf));
-
   const opts = chosen.map((x) => byUpper.get(x));
   return {
     ok: true,
@@ -470,7 +522,7 @@ function validateAnswer(q, a) {
       status: 'answered',
       answer: opts.map((o) => o.id),
       answerText: opts.map((o) => o.text || `(image option ${o.id})`),
-      confidence: Math.round(conf * 100) / 100,
+      confidence: confidenceOf(a),
       reasoning: String(a.reasoning || '').slice(0, 600),
       readText: String(a.readText || '').slice(0, 1000),
     },
@@ -520,9 +572,10 @@ const imageKey = (i) => (i && typeof i === 'object' && i.key) || toInlinePart(i)
 async function questionHash(model, q) {
   const canon = JSON.stringify({
     v: PROMPT_VERSION, model, type: q.type, text: q.text || '',
+    numeric: !!q.numeric, maxLength: q.maxLength || 0,
     images: imageList(q.images).map(imageKey),
     screenshot: q.screenshot ? imageKey(q.screenshot) : '',
-    options: q.options.map((o) => [o.id, o.text || '', imageList(o.images).map(imageKey)]),
+    options: (q.options || []).map((o) => [o.id, o.text || '', imageList(o.images).map(imageKey)]),
   });
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canon));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
