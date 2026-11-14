@@ -170,6 +170,7 @@ async function startRun(tabId) {
     model: settings.mode === 'scoring' ? null : settings.model,
     scoringPattern: settings.scoringPattern,
     customPattern: settings.customPattern,
+    scoringText: settings.scoringText || DEFAULT_SCORING_TEXT,
     confirmBeforeSend: settings.confirmBeforeSend,
     sendConfirmed: false,
     status: 'running',
@@ -180,7 +181,7 @@ async function startRun(tabId) {
     pages: [],          // [{url, questionIds}]
     order: [],          // question ids in quiz order
     questions: {},      // id -> {id, n, page, type, text, options, hasImages, needsScreenshot}
-    plan: {},           // id -> {status:'planned'|'skipped'|'error', answer?, source, confidence?, reasoning?, reason?}
+    plan: {},           // id -> {status:'planned'|'skipped'|'error', answer?, text?, source, confidence?, reasoning?, reason?}
     applied: {},        // id -> {ok, wanted, checked, error?}
     submit: null,       // {confirmed, clickedAt}
     results: null,      // {score, url, scrapedAt}
@@ -327,7 +328,11 @@ function registerPage(run, page) {
 // Planning answers
 // =====================================================================
 
-const SUPPORTED = new Set(['single', 'multi', 'truefalse']);
+const CHOICE_TYPES = new Set(['single', 'multi', 'truefalse']);
+const TEXT_TYPES = new Set(['text', 'paragraph']);
+const SUPPORTED = new Set([...CHOICE_TYPES, ...TEXT_TYPES]);
+const DEFAULT_SCORING_TEXT = 'iFill test answer';
+const isText = (q) => TEXT_TYPES.has(q?.type);
 
 async function planQuestions(run, ids, signal) {
   const todo = ids.filter((id) => !run.plan[id]);
@@ -335,8 +340,21 @@ async function planQuestions(run, ids, signal) {
 
   for (const id of todo) {
     const q = run.questions[id];
-    if (!SUPPORTED.has(q.type)) {
+    if (q.type === 'detail') {
+      run.plan[id] = { status: 'skipped', source: 'type', reason: 'Personal-details field (name, email, ID…): left for you to fill in.' };
+    } else if (!SUPPORTED.has(q.type)) {
       run.plan[id] = { status: 'skipped', source: 'type', reason: `Unsupported type "${q.type}" (not answered).` };
+    }
+  }
+
+  // Never overwrite text the user already typed, and don't spend Gemini quota on it.
+  const textIds = todo.filter((id) => !run.plan[id] && isText(run.questions[id]));
+  if (textIds.length) {
+    const { selections } = await toContent(run.tabId, { type: 'readSelections', ids: textIds });
+    for (const s of selections) {
+      if (s.text && s.text.trim()) {
+        run.plan[s.id] = { status: 'skipped', source: 'page', reason: 'Already filled in; left as it is.' };
+      }
     }
   }
 
@@ -354,7 +372,7 @@ async function planQuestions(run, ids, signal) {
   const withImages = ask.filter(usesImages);
 
   if (run.confirmBeforeSend && !run.sendConfirmed) {
-    const { ok, remember } = await toContent(run.tabId, {
+    const { confirmed: ok, remember } = await toContent(run.tabId, {
       type: 'confirm',
       title: 'Send this quiz to Gemini?',
       message: `${ask.length} question(s)${withImages.length ? `, ${withImages.length} with images` : ''} will be sent to Google (${run.model}). `
@@ -378,14 +396,15 @@ async function planQuestions(run, ids, signal) {
       id: q.id, type: q.type, text: q.text,
       images: m?.images || [],
       screenshot: m?.screenshot || null,
-      options: q.options.map((o) => ({ id: o.id, text: o.text, images: m?.options[o.id] || [] })),
+      options: (q.options || []).map((o) => ({ id: o.id, text: o.text, images: m?.options[o.id] || [] })),
     };
+    if (isText(q)) { item.numeric = !!q.numeric; if (q.maxLength) item.maxLength = q.maxLength; }
     const hasAnyImage = item.images.length || item.screenshot || item.options.some((o) => o.images.length);
     if (!item.text && !hasAnyImage) {
       run.plan[q.id] = { status: 'skipped', source: 'model', reason: 'Question text could not be read (no text and image capture failed).' };
       continue;
     }
-    if (q.options.some((o) => o.hasImage && !o.text) && !item.options.every((o) => o.text || o.images.length) && !item.screenshot) {
+    if ((q.options || []).some((o) => o.hasImage && !o.text) && !item.options.every((o) => o.text || o.images.length) && !item.screenshot) {
       run.plan[q.id] = { status: 'skipped', source: 'model', reason: 'Some image-only options could not be captured.' };
       continue;
     }
@@ -403,6 +422,7 @@ async function planQuestions(run, ids, signal) {
   for (const r of results) {
     if (r.status === 'answered') {
       run.plan[r.id] = { status: 'planned', source: 'model', answer: r.answer, answerText: r.answerText,
+        ...(r.textAnswer ? { text: r.textAnswer } : {}),
         confidence: r.confidence, reasoning: r.reasoning, cached: !!r.cached };
       if (r.readText && !run.questions[r.id].text) run.questions[r.id].textFromImage = r.readText;
     } else {
@@ -415,7 +435,14 @@ async function planQuestions(run, ids, signal) {
 
 /** Scoring-test mode: deterministic answer from the chosen pattern. */
 function patternPlan(run, q) {
-  const idx = q.n - 1; // position in the whole quiz, 0-based
+  // Text questions always get the same fixed text (a number field gets "1").
+  if (isText(q)) {
+    const text = q.numeric ? '1' : run.scoringText;
+    return { status: 'planned', source: 'pattern', answer: [], text, answerText: [text] };
+  }
+  // Position among the choice questions only, 0-based, so a custom pattern
+  // has one entry per choice question; text and personal-detail fields don't use a slot.
+  const idx = run.order.filter((id) => CHOICE_TYPES.has(run.questions[id]?.type)).indexOf(q.id);
   const opts = q.options;
   let picks;
   if (run.scoringPattern === 'alternating') {
@@ -423,7 +450,7 @@ function patternPlan(run, q) {
   } else if (run.scoringPattern === 'custom') {
     const tokens = (run.customPattern || '').split(/[\s,;]+/).filter(Boolean);
     const tok = tokens[idx];
-    if (!tok) return { status: 'skipped', source: 'pattern', reason: `Custom pattern has no entry for question ${q.n}.` };
+    if (!tok) return { status: 'skipped', source: 'pattern', reason: `Custom pattern has no entry for question ${q.n} (choice question ${idx + 1}).` };
     picks = tok.split('+').map((part) => {
       if (/^\d+$/.test(part)) return opts[Number(part) - 1];
       if (/^[A-Za-z]$/.test(part)) return opts[part.toUpperCase().charCodeAt(0) - 65];
@@ -445,7 +472,7 @@ function patternPlan(run, q) {
 // Images: read from the page, else screenshot + crop
 // =====================================================================
 
-const usesImages = (q) => q.hasImages || q.needsScreenshot || q.options.some((o) => o.hasImage);
+const usesImages = (q) => q.hasImages || q.needsScreenshot || (q.options || []).some((o) => o.hasImage);
 const CAPTURE_GAP_MS = 600;     // Chrome allows ~2 captureVisibleTab calls per second
 const MAX_SIDE = 1024;
 let lastCaptureAt = 0;
@@ -535,17 +562,28 @@ async function captureCrop(run, token) {
 // =====================================================================
 
 async function applyPlan(run, ids) {
-  const plan = ids.filter((id) => run.plan[id]?.status === 'planned').map((id) => ({ id, answer: run.plan[id].answer }));
+  const plan = ids.filter((id) => run.plan[id]?.status === 'planned')
+    .map((id) => (isText(run.questions[id]) ? { id, text: run.plan[id].text } : { id, answer: run.plan[id].answer }));
   if (!plan.length) return;
-  run.progress = `Selecting ${plan.length} answer(s)…`;
+  run.progress = `Filling in ${plan.length} answer(s)…`;
   await saveRun(run);
   const { results } = await toContent(run.tabId, { type: 'applyAnswers', plan });
   let failed = 0;
   for (const r of results) {
-    run.applied[r.id] = { ok: r.ok, wanted: r.wanted, checked: r.checked, error: r.error || null, at: Date.now() };
+    const n = run.questions[r.id]?.n;
+    // The user typed something in the meantime: keep it, don't count it as a failure.
+    if (!r.ok && /already has text/i.test(r.error || '')) {
+      run.plan[r.id] = { status: 'skipped', source: 'page', reason: 'Already filled in; left as it is.' };
+      continue;
+    }
+    run.applied[r.id] = { ok: r.ok, wanted: r.wanted, checked: r.checked, error: r.error || null, at: Date.now(),
+      ...(r.text !== undefined ? { text: r.text } : {}), ...(r.truncated ? { truncated: true } : {}) };
+    if (r.truncated) log(run, 'warn', `Q${n}: the text was cut to fit the field's character limit.`);
     if (!r.ok) {
       failed++;
-      log(run, 'warn', `Q${run.questions[r.id]?.n}: selection failed (wanted ${r.wanted.join('+')}, page shows ${r.checked.join('+') || 'nothing'})${r.error ? ': ' + r.error : ''}.`);
+      log(run, 'warn', r.text !== undefined
+        ? `Q${n}: typing failed${r.error ? ': ' + r.error : ''}.`
+        : `Q${n}: selection failed (wanted ${r.wanted.join('+')}, page shows ${r.checked.join('+') || 'nothing'})${r.error ? ': ' + r.error : ''}.`);
     }
   }
   run.progress = '';
@@ -555,12 +593,13 @@ async function applyPlan(run, ids) {
 async function highlightPage(run, ids) {
   const items = ids.map((id) => {
     const p = run.plan[id], a = run.applied[id];
-    const ans = p?.answer?.join('+');
+    const text = p?.text != null;
+    const ans = text ? `“${clip(p.text, 300)}”` : p?.answer?.join('+');
     const conf = p?.confidence != null ? ` (${Math.round(p.confidence * 100)}%)` : '';
     if (!p || p.status !== 'planned') return { id, status: 'skip', label: `QA: ${p?.status || 'skipped'} — ${p?.reason || ''}` };
-    if (run.mode === 'dryrun') return { id, status: 'planned', label: `QA would pick: ${ans}${conf}` };
-    if (a && !a.ok) return { id, status: 'fail', label: `QA: selection failed (wanted ${ans})` };
-    return { id, status: 'ok', label: `QA: ${ans}${conf}` };
+    if (run.mode === 'dryrun') return { id, status: 'planned', label: `QA would ${text ? 'type' : 'pick'}: ${ans}${conf}` };
+    if (a && !a.ok) return { id, status: 'fail', label: text ? `QA: typing failed — ${a.error || 'text not kept'}` : `QA: selection failed (wanted ${ans})` };
+    return { id, status: 'ok', label: `QA: ${text ? 'typed ' : ''}${ans}${a?.truncated ? ' (cut to fit)' : ''}${conf}` };
   });
   await toContent(run.tabId, { type: 'highlight', items }).catch(() => {});
 }
@@ -590,10 +629,10 @@ async function askAndSubmit(run) {
   run.progress = 'Waiting for you to confirm submit…';
   await saveRun(run);
 
-  const { ok } = await toContent(run.tabId, {
+  const { confirmed: ok } = await toContent(run.tabId, {
     type: 'confirm',
     title: 'Submit?',
-    message: `${planned.length - failed.length} selected`
+    message: `${planned.length - failed.length} filled in`
       + (failed.length ? `, ${failed.length} failed` : '')
       + (skipped.length ? `, ${skipped.length} skipped` : '')
       + '. You can review the page first.',
@@ -662,6 +701,7 @@ function bannerText(run) {
   return `${modeName(run.mode)} running`;
 }
 
+function clip(t, max) { t = String(t); return t.length > max ? t.slice(0, max - 1) + '…' : t; }
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 // If a quiz tab is closed, drop it from the active map.

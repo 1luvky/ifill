@@ -8,7 +8,7 @@
 //                                -> {results:[{id, ok, wanted, checked, text?, truncated?, error?}]}
 //   readSelections {ids?}        -> {selections:[{id, checked:[optIds], text?}]}
 //   nextPage                     -> {moved}   (no reply if the page navigates away; background expects that)
-//   confirm {title, message, okLabel, cancelLabel} -> {ok}   (in-page dialog)
+//   confirm {title, message, okLabel, cancelLabel} -> {confirmed, remember}   (in-page dialog)
 //   submit                       -> {clicked}  (background only sends this after the user confirmed)
 //   collectImages {ids}          -> {items:[{id, images, failed:[{token}], options:[{id, images, failed}], containerToken}]}
 //   prepareCapture {token} / endCapture  -> element box for a screenshot crop (our overlay hidden meanwhile)
@@ -416,7 +416,7 @@
       const btns = document.createElement('div'); btns.className = 'btns';
       const cancel = document.createElement('button'); cancel.textContent = cancelLabel;
       const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = okLabel;
-      const done = (v) => { slot.replaceChildren(); resolve({ ok: v, remember: !!box?.checked }); };
+      const done = (v) => { slot.replaceChildren(); resolve({ confirmed: v, remember: !!box?.checked }); };
       cancel.addEventListener('click', () => done(false));
       ok.addEventListener('click', () => done(true));
       btns.append(cancel, ok);
